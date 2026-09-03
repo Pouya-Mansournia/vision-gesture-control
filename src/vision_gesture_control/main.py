@@ -16,14 +16,10 @@ from typing import Deque, Optional
 
 import cv2
 
-from .action_dispatcher import (
-    ActionDispatcher,
-    beep_action,
-    create_default_sound_backend,
-)
+from .action_dispatcher import ActionDispatcher, build_gesture_dispatcher
 from .camera import Camera, CameraError
 from .config import DEFAULT_CONFIG, AppConfig
-from .gesture_classifier import Gesture, GestureClassifier
+from .gesture_classifier import GestureClassifier
 from .gesture_stabilizer import GestureStabilizer
 from .hand_tracker import HandTracker, HandTrackerError
 from .visualization import draw_landmarks, draw_overlay
@@ -51,18 +47,7 @@ class FpsMeter:
 
 
 def build_dispatcher(config: AppConfig) -> ActionDispatcher:
-    backend = create_default_sound_backend()
-    mapping = {
-        Gesture.THUMBS_UP: beep_action(
-            "high-beep", backend,
-            config.thumbs_up_frequency_hz, config.thumbs_up_duration_ms,
-        ),
-        Gesture.THUMBS_DOWN: beep_action(
-            "low-beep", backend,
-            config.thumbs_down_frequency_hz, config.thumbs_down_duration_ms,
-        ),
-    }
-    return ActionDispatcher(mapping, cooldown_seconds=config.action_cooldown_seconds)
+    return build_gesture_dispatcher(cooldown_seconds=config.action_cooldown_seconds)
 
 
 def run(config: Optional[AppConfig] = None) -> None:
@@ -88,18 +73,15 @@ def run(config: Optional[AppConfig] = None) -> None:
                 if config.mirror_preview:
                     frame = cv2.flip(frame, 1)
 
-                hand = tracker.process(frame)
-                raw_gesture = (
-                    classifier.classify(hand).gesture
-                    if hand is not None
-                    else Gesture.UNKNOWN
-                )
+                hands = tracker.process(frame)
+                raw_gesture = classifier.classify_scene(hands).gesture
 
                 confirmed = stabilizer.update(raw_gesture)
                 dispatcher.handle(confirmed)
 
-                if config.draw_landmarks and hand is not None:
-                    draw_landmarks(frame, hand)
+                if config.draw_landmarks:
+                    for hand in hands:
+                        draw_landmarks(frame, hand)
 
                 fps_meter.tick()
                 if config.show_fps:

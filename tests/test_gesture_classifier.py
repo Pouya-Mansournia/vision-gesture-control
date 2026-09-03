@@ -1,4 +1,4 @@
-"""Unit tests for the geometric gesture classifier using synthetic landmarks.
+"""Unit tests for single-hand geometric gesture classification.
 
 Image convention: y grows downward, so "up" == smaller y.
 """
@@ -21,7 +21,7 @@ _FINGERS = {
 
 
 def _open_palm() -> np.ndarray:
-    """Hand centred at the wrist with all fingers extended upward."""
+    """Hand centred at the wrist with all five fingers extended upward."""
     pts = np.zeros((NUM_LANDMARKS, 3), dtype=float)
     pts[LM.WRIST] = (0.50, 0.90, 0.0)
     pts[LM.THUMB_CMC] = (0.44, 0.84, 0.0)
@@ -55,6 +55,31 @@ def _fold(pts: np.ndarray, finger: str) -> None:
     pts[tip] = (x, y + 0.04, 0.0)
 
 
+def _tuck_thumb(pts: np.ndarray) -> None:
+    pts[LM.THUMB_MCP] = (0.48, 0.80, 0.0)
+    pts[LM.THUMB_IP] = (0.50, 0.78, 0.0)
+    pts[LM.THUMB_TIP] = (0.52, 0.77, 0.0)
+
+
+def _loose_fold(pts: np.ndarray, finger: str) -> None:
+    """A gentle curl: the tip drops just inside its own PIP joint, the way a
+    real hand curls the spare fingers for a one-finger pose."""
+    mcp, pip, dip, tip = _FINGERS[finger]
+    px, py = pts[pip, 0], pts[pip, 1]
+    pts[dip] = (px, py + 0.015, 0.0)
+    pts[tip] = (px, py + 0.03, 0.0)
+
+
+def _rotate(pts: np.ndarray, radians: float) -> np.ndarray:
+    """Rotate the hand about the wrist (distance-to-wrist preserving)."""
+    out = pts.copy()
+    wrist = out[LM.WRIST, :2].copy()
+    c, s = np.cos(radians), np.sin(radians)
+    rot = np.array([[c, -s], [s, c]])
+    out[:, :2] = (out[:, :2] - wrist) @ rot.T + wrist
+    return out
+
+
 def _thumbs_up() -> np.ndarray:
     pts = _open_palm()
     for finger in _FINGERS:
@@ -84,31 +109,70 @@ def test_thumbs_up_is_recognized(classifier: GestureClassifier) -> None:
 def test_thumbs_down_is_recognized(classifier: GestureClassifier) -> None:
     pts = _thumbs_up()
     pts[:, 1] = 1.8 - pts[:, 1]  # mirror vertically about the wrist row (y=0.9)
-    result = classifier.classify(_hand(pts))
-    assert result.gesture is Gesture.THUMBS_DOWN
-    assert result.confidence > 0.0
+    assert classifier.classify(_hand(pts)).gesture is Gesture.THUMBS_DOWN
 
 
 def test_thumbs_up_is_resolution_independent(classifier: GestureClassifier) -> None:
     pts = _thumbs_up()
-    pts[:, 0] *= 0.25  # simulate a very different aspect / scale
-    pts[:, 1] *= 0.25
+    pts[:, :2] *= 0.25
     assert classifier.classify(_hand(pts)).gesture is Gesture.THUMBS_UP
 
 
-def test_open_palm_does_not_trigger(classifier: GestureClassifier) -> None:
-    assert classifier.classify(_hand(_open_palm())).gesture is Gesture.UNKNOWN
+def test_open_palm_is_recognized(classifier: GestureClassifier) -> None:
+    assert classifier.classify(_hand(_open_palm())).gesture is Gesture.OPEN_PALM
 
 
-def test_fist_does_not_trigger(classifier: GestureClassifier) -> None:
+def test_fist_is_recognized(classifier: GestureClassifier) -> None:
     pts = _open_palm()
     for finger in _FINGERS:
         _fold(pts, finger)
-    # thumb tucked across the palm (not extended)
-    pts[LM.THUMB_MCP] = (0.48, 0.80, 0.0)
-    pts[LM.THUMB_IP] = (0.50, 0.78, 0.0)
-    pts[LM.THUMB_TIP] = (0.52, 0.77, 0.0)
-    assert classifier.classify(_hand(pts)).gesture is Gesture.UNKNOWN
+    _tuck_thumb(pts)
+    assert classifier.classify(_hand(pts)).gesture is Gesture.FIST
+
+
+def test_peace_is_recognized(classifier: GestureClassifier) -> None:
+    pts = _open_palm()
+    _fold(pts, "ring")
+    _fold(pts, "pinky")
+    assert classifier.classify(_hand(pts)).gesture is Gesture.PEACE
+
+
+def test_index_up_is_recognized(classifier: GestureClassifier) -> None:
+    pts = _open_palm()
+    _fold(pts, "middle")
+    _fold(pts, "ring")
+    _fold(pts, "pinky")
+    _tuck_thumb(pts)
+    assert classifier.classify(_hand(pts)).gesture is Gesture.INDEX_UP
+
+
+def test_middle_finger_is_recognized(classifier: GestureClassifier) -> None:
+    pts = _open_palm()
+    _fold(pts, "index")
+    _fold(pts, "ring")
+    _fold(pts, "pinky")
+    _tuck_thumb(pts)
+    assert classifier.classify(_hand(pts)).gesture is Gesture.MIDDLE_FINGER
+
+
+def test_middle_finger_with_a_loose_curl(classifier: GestureClassifier) -> None:
+    # The spare fingers are only gently curled, not clenched to the palm.
+    pts = _open_palm()
+    _loose_fold(pts, "index")
+    _loose_fold(pts, "ring")
+    _loose_fold(pts, "pinky")
+    _tuck_thumb(pts)
+    assert classifier.classify(_hand(pts)).gesture is Gesture.MIDDLE_FINGER
+
+
+def test_middle_finger_when_the_hand_is_tilted(classifier: GestureClassifier) -> None:
+    pts = _open_palm()
+    _fold(pts, "index")
+    _fold(pts, "ring")
+    _fold(pts, "pinky")
+    _tuck_thumb(pts)
+    assert classifier.classify(_hand(_rotate(pts, 0.30))).gesture is Gesture.MIDDLE_FINGER
+    assert classifier.classify(_hand(_rotate(pts, -0.30))).gesture is Gesture.MIDDLE_FINGER
 
 
 def test_degenerate_hand_is_unknown(classifier: GestureClassifier) -> None:

@@ -6,14 +6,17 @@
 flowchart TD
     cam[Camera.read] -->|BGR frame| flip[optional cv2.flip mirror]
     flip --> track[HandTracker.process]
-    track -->|HandLandmarks or None| clf[GestureClassifier.classify]
+    track -->|list of HandLandmarks| clf[GestureClassifier.classify_scene]
     clf -->|Gesture + confidence| stab[GestureStabilizer.update]
     stab -->|confirmed Gesture| disp[ActionDispatcher.handle]
-    disp -->|Action.run| snd[SoundBackend.beep]
-    track --> viz[visualization.draw_landmarks]
+    disp -->|Action.run| snd[SoundBackend.beep x N tones]
+    track --> viz[visualization.draw_landmarks per hand]
     stab --> viz2[visualization.draw_overlay]
     viz2 --> show[cv2.imshow / waitKey]
 ```
+
+`classify_scene` returns a two-hand gesture (currently `TWO_HAND_HEART`) when two
+hands are present and the rule matches; otherwise it classifies the first hand.
 
 ## Module responsibilities
 
@@ -21,8 +24,8 @@ flowchart TD
 | --- | --- | --- |
 | `landmarks.py` | numpy | Neutral `HandLandmarks` value type + hand topology. No cv2/mediapipe. |
 | `camera.py` | opencv | Open / read / release a webcam; context manager; typed errors. |
-| `hand_tracker.py` | mediapipe | Run the MediaPipe Tasks `HandLandmarker` (auto-downloads the `.task` model), convert its result to `HandLandmarks`. The **only** place the detector backend is known. |
-| `gesture_classifier.py` | numpy | Pure function `HandLandmarks -> Gesture`. Deterministic, unit-tested. |
+| `hand_tracker.py` | mediapipe | Run the MediaPipe Tasks `HandLandmarker` (auto-downloads the `.task` model), return a `list[HandLandmarks]` (up to `max_hands`). The **only** place the detector backend is known. |
+| `gesture_classifier.py` | numpy | Pure `classify(hand)` and `classify_scene(hands)` -> `Gesture`. Deterministic, unit-tested. |
 | `gesture_stabilizer.py` | stdlib | Confirm a gesture only after N consecutive frames; hold through short noise. |
 | `action_dispatcher.py` | stdlib | `Gesture -> Action`; fire once per hold; global cooldown; pluggable sound backend. |
 | `visualization.py` | opencv | Draw skeleton + status overlay. |

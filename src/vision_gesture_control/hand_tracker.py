@@ -16,7 +16,7 @@ import os
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
 
@@ -37,7 +37,7 @@ class HandTrackerError(RuntimeError):
 
 @dataclass
 class HandTrackerConfig:
-    max_hands: int = 1
+    max_hands: int = 2
     min_detection_confidence: float = 0.6
     min_presence_confidence: float = 0.5
     min_tracking_confidence: float = 0.5
@@ -104,7 +104,11 @@ class HandTracker:
         logger.info("hand model loaded")
         return self
 
-    def process(self, frame_bgr: np.ndarray) -> Optional[HandLandmarks]:
+    def process(self, frame_bgr: np.ndarray) -> List[HandLandmarks]:
+        """Return all detected hands, ordered as MediaPipe reports them.
+
+        The list is empty when no hand is found.
+        """
         if self._landmarker is None or self._mp is None:
             raise HandTrackerError("hand tracker is not open")
 
@@ -115,22 +119,22 @@ class HandTracker:
         except Exception as exc:  # pragma: no cover - runtime inference failure
             raise HandTrackerError("hand inference failed") from exc
 
-        if not result.hand_landmarks:
-            return None
+        hands: List[HandLandmarks] = []
+        for i, landmarks in enumerate(result.hand_landmarks or []):
+            points = np.array([[lm.x, lm.y, lm.z] for lm in landmarks], dtype=float)
+            if points.shape != (NUM_LANDMARKS, 3):
+                continue
 
-        landmarks = result.hand_landmarks[0]
-        points = np.array([[lm.x, lm.y, lm.z] for lm in landmarks], dtype=float)
-        if points.shape != (NUM_LANDMARKS, 3):
-            return None
+            handedness = "Unknown"
+            score = 0.0
+            if result.handedness and i < len(result.handedness):
+                category = result.handedness[i][0]
+                handedness = category.category_name or "Unknown"
+                score = float(category.score)
 
-        handedness = "Unknown"
-        score = 0.0
-        if result.handedness:
-            category = result.handedness[0][0]
-            handedness = category.category_name or "Unknown"
-            score = float(category.score)
+            hands.append(HandLandmarks(points=points, handedness=handedness, score=score))
 
-        return HandLandmarks(points=points, handedness=handedness, score=score)
+        return hands
 
     def close(self) -> None:
         if self._landmarker is not None:

@@ -18,9 +18,24 @@ import logging
 import platform
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Sequence, Tuple
 
 from .gesture_classifier import Gesture
+
+# A tone is (frequency_hz, duration_ms). A gesture maps to a sequence of tones,
+# so distinct gestures are audibly different.
+Tone = Tuple[int, int]
+
+DEFAULT_GESTURE_TONES: Dict[Gesture, Tuple[Tone, ...]] = {
+    Gesture.THUMBS_UP: ((1400, 120),),
+    Gesture.THUMBS_DOWN: ((400, 350),),
+    Gesture.OPEN_PALM: ((700, 90), (900, 90)),
+    Gesture.FIST: ((200, 220),),
+    Gesture.PEACE: ((1000, 80), (1000, 80)),
+    Gesture.INDEX_UP: ((1200, 100),),
+    Gesture.MIDDLE_FINGER: ((1000, 500),),
+    Gesture.TWO_HAND_HEART: ((800, 110), (1000, 110), (1300, 200)),
+}
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +87,35 @@ def beep_action(name: str, backend: SoundBackend,
         backend.beep(frequency_hz, duration_ms)
 
     return Action(name=name, run=_run)
+
+
+def sequence_beep_action(name: str, backend: SoundBackend,
+                         tones: Sequence[Tone]) -> Action:
+    """An action that plays several tones back to back."""
+
+    plan = tuple(tones)
+
+    def _run() -> None:
+        for frequency_hz, duration_ms in plan:
+            backend.beep(frequency_hz, duration_ms)
+
+    return Action(name=name, run=_run)
+
+
+def build_gesture_dispatcher(
+    cooldown_seconds: float = 1.0,
+    tones: Optional[Dict[Gesture, Tuple[Tone, ...]]] = None,
+    backend: Optional[SoundBackend] = None,
+) -> "ActionDispatcher":
+    """Wire every gesture in ``tones`` to a distinct beep sequence."""
+
+    backend = backend or create_default_sound_backend()
+    tones = tones or DEFAULT_GESTURE_TONES
+    mapping = {
+        gesture: sequence_beep_action(gesture.value.lower(), backend, seq)
+        for gesture, seq in tones.items()
+    }
+    return ActionDispatcher(mapping, cooldown_seconds=cooldown_seconds)
 
 
 class ActionDispatcher:

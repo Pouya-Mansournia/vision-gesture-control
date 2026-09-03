@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
+  <title>Vision Gesture Control - on-screen overlay (illustration)</title>
+
+  <!-- camera frame -->
+  <rect x="0" y="0" width="960" height="600" rx="10" fill="#0f1216"/>
+  <rect x="6" y="6" width="948" height="588" rx="8" fill="none" stroke="#2b3440" stroke-width="2"/>
+
+  <!-- stylised hand skeleton: a thumbs-up -->
+  <g stroke="#00e676" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <polyline points="690,500 655,470 640,420 628,375 620,320"/>
+    <polyline points="690,500 690,430 715,435 738,445 758,460 690,500"/>
+    <polyline points="690,430 700,400 690,405 675,415"/>
+    <polyline points="715,435 728,405 715,410 700,420"/>
+    <polyline points="738,445 750,418 738,423 725,432"/>
+    <polyline points="758,460 768,438 758,442 748,450"/>
+  </g>
+  <g fill="#ffffff">
+    <circle cx="690" cy="500" r="5"/>
+    <circle cx="655" cy="470" r="5"/><circle cx="640" cy="420" r="5"/><circle cx="628" cy="375" r="5"/><circle cx="620" cy="320" r="6"/>
+    <circle cx="690" cy="430" r="5"/><circle cx="700" cy="400" r="4"/><circle cx="690" cy="405" r="4"/><circle cx="675" cy="415" r="4"/>
+    <circle cx="715" cy="435" r="5"/><circle cx="728" cy="405" r="4"/><circle cx="715" cy="410" r="4"/><circle cx="700" cy="420" r="4"/>
+    <circle cx="738" cy="445" r="5"/><circle cx="750" cy="418" r="4"/><circle cx="738" cy="423" r="4"/><circle cx="725" cy="432" r="4"/>
+    <circle cx="758" cy="460" r="5"/><circle cx="768" cy="438" r="4"/><circle cx="758" cy="442" r="4"/><circle cx="748" cy="450" r="4"/>
+  </g>
+
+  <!-- status overlay, matching visualization.draw_overlay -->
+  <g font-size="26" font-weight="700" xml:space="preserve">
+    <g fill="#000000" stroke="#000000" stroke-width="4">
+      <text x="24" y="52">Gesture:   THUMBS_UP</text>
+      <text x="24" y="86">Confirmed: THUMBS_UP</text>
+      <text x="24" y="120">Action:    thumbs_up</text>
+      <text x="24" y="154">FPS:        28.5</text>
+      <text x="24" y="188">Cooldown:  no</text>
+    </g>
+    <g fill="#ffd400">
+      <text x="24" y="52">Gesture:   THUMBS_UP</text>
+      <text x="24" y="86">Confirmed: THUMBS_UP</text>
+      <text x="24" y="120">Action:    thumbs_up</text>
+      <text x="24" y="154">FPS:        28.5</text>
+      <text x="24" y="188">Cooldown:  no</text>
+    </g>
+  </g>
+
+  <text x="24" y="576" font-size="16" fill="#8b97a5">Illustration of the on-screen overlay, drawn from the code. Not a captured screenshot.</text>
+</svg>

@@ -1,17 +1,17 @@
 # Vision Gesture Control
 
-Real-time webcam hand-gesture recognition that turns a thumbs-up or thumbs-down
-into a desktop action. It uses MediaPipe hand landmarks plus explicit geometry
-rather than a trained gesture model, so every decision is readable and unit-testable.
+Real-time webcam hand-gesture recognition that maps hand poses to desktop
+actions. It uses MediaPipe hand landmarks plus explicit geometry rather than a
+trained gesture model, so every decision is readable and unit-testable.
 
 [![tests](https://github.com/Pouya-Mansournia/vision-gesture-control/actions/workflows/tests.yml/badge.svg)](https://github.com/Pouya-Mansournia/vision-gesture-control/actions/workflows/tests.yml)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-V1 recognizes two gestures, `THUMBS_UP` and `THUMBS_DOWN`, and plays a distinct
-beep for each. The project is small on purpose: it exists to show the full
-perception pipeline end to end, from webcam frame to confirmed action, in code
-you can step through.
+It recognizes seven one-hand poses and one two-hand pose, and plays a distinct
+beep sequence for each. The project is small on purpose: it exists to show the
+full perception pipeline end to end, from webcam frame to confirmed action, in
+code you can step through.
 
 ```mermaid
 flowchart LR
@@ -25,10 +25,14 @@ flowchart LR
 
 ## Demo
 
-No screen recording is included yet (`Planned`, see
-[Visual assets status](#visual-assets-status)). When the app runs it shows the
-live webcam with the hand skeleton drawn on top and a text overlay: raw gesture,
-confirmed gesture, FPS, last action, and cooldown state.
+![Illustration of the on-screen overlay: a hand skeleton drawn over the webcam
+frame with a status panel showing gesture, confirmed gesture, action, FPS, and
+cooldown](assets/readme/overlay-mockup.svg)
+
+The figure above is drawn from the code, not captured from a camera. When the
+app runs it shows the live webcam with the hand skeleton on top and this status
+overlay. A real screen recording is still `Planned` (see
+[Visual assets status](#visual-assets-status)).
 
 ## What it does
 
@@ -99,14 +103,25 @@ repeat. Switch to thumbs-down: a longer low beep fires once.
 
 ## Supported gestures
 
-| Status | Gesture | Action |
+| Gesture | Hands | Beep sequence (Hz × ms) |
 | --- | --- | --- |
-| implemented | `THUMBS_UP` | short high-frequency beep (1400 Hz, 120 ms) |
-| implemented | `THUMBS_DOWN` | longer low-frequency beep (400 Hz, 350 ms) |
-| reserved | `OPEN_PALM`, `FIST`, `INDEX_UP`, `INDEX_DOWN`, `PEACE`, `OK` | none yet |
+| `THUMBS_UP` | 1 | 1400×120 |
+| `THUMBS_DOWN` | 1 | 400×350 |
+| `OPEN_PALM` | 1 | 700×90, 900×90 |
+| `FIST` | 1 | 200×220 |
+| `PEACE` | 1 | 1000×80, 1000×80 |
+| `INDEX_UP` | 1 | 1200×100 |
+| `MIDDLE_FINGER` | 1 | 1000×500 |
+| `TWO_HAND_HEART` | 2 | 800×110, 1000×110, 1300×200 |
 
-Adding a gesture means adding a branch in `GestureClassifier.classify` and an
-entry in the action map. No other wiring changes.
+Reserved but not implemented: `INDEX_DOWN`, `OK`.
+
+The classifier recognizes a pose from which fingers are extended or folded
+(`dist(tip, wrist)` against `dist(mcp, wrist)`), plus the thumb's length and
+direction. `TWO_HAND_HEART` fires when both hands' thumbs meet near the bottom
+and both index tips meet near the top. Beep sequences live in
+`DEFAULT_GESTURE_TONES` in `action_dispatcher.py`; adding a gesture means adding
+one branch in `GestureClassifier` and one entry there.
 
 ## How it works
 
@@ -114,12 +129,15 @@ The per-frame path is `Camera.read` → optional mirror → `HandTracker.process
 `GestureClassifier.classify` → `GestureStabilizer.update` →
 `ActionDispatcher.handle`, with `visualization` drawing the skeleton and overlay.
 
-* **Classifier.** A gesture is a thumbs-up when the thumb is extended (its
-  tip-to-CMC length over hand scale exceeds a threshold), pointing up (its
-  vertical component dominates its horizontal one and the tip sits above the
-  wrist), and the other four fingers are folded (each fingertip is closer to the
-  wrist than its MCP joint by a set ratio). Thumbs-down is the same test with the
-  thumb pointing down.
+* **Classifier.** Each finger is scored from its wrist distances at the tip,
+  pip, and mcp joints: *folded* when the tip has curled back inside its pip,
+  *raised* when the joints step outward (a straight finger of any length), and
+  *extended* when it is raised and also long enough. The thumb gets a
+  length-over-scale check and a direction. Poses are then simple rules: thumbs-up
+  is the thumb extended and pointing up with the four fingers folded; the
+  one/two-finger poses (`PEACE`, `INDEX_UP`, `MIDDLE_FINGER`) need the named
+  fingers raised and the rest not raised, so a loose curl still counts.
+  Half-formed hands match nothing.
 * **Stabilizer.** It counts the trailing run of identical raw gestures. Once the
   run reaches `gesture_confirmation_frames`, that gesture becomes confirmed. A
   single noisy frame cannot flip a confirmed state; clearing it needs a full run
@@ -134,10 +152,10 @@ Full details, including the ROS 2 boundary and the YOLO comparison, are in
 ```mermaid
 flowchart TD
     cam["Camera.read (BGR frame)"] --> track["HandTracker.process"]
-    track -->|HandLandmarks or None| clf["GestureClassifier.classify"]
+    track -->|list of hands| clf["GestureClassifier.classify_scene"]
     clf -->|Gesture + confidence| stab["GestureStabilizer.update"]
     stab -->|confirmed Gesture| disp["ActionDispatcher.handle"]
-    disp -->|Action.run| snd["SoundBackend.beep"]
+    disp -->|Action.run| snd["SoundBackend.beep x N tones"]
     track --> viz["visualization overlay"]
     stab --> viz
     viz --> show["cv2.imshow / waitKey"]
@@ -183,9 +201,13 @@ Every tunable lives in `AppConfig` in `config.py`.
 | `action_cooldown_seconds` | `1.0` | minimum time between fired actions |
 | `thumb_extension_threshold` | `0.6` | thumb length over hand scale to count as extended |
 | `finger_fold_threshold` | `1.1` | `dist(tip, wrist) < k · dist(mcp, wrist)` means folded |
+| `finger_extension_threshold` | `1.5` | `dist(tip, wrist) > k · dist(mcp, wrist)` means extended |
 | `thumb_vertical_ratio` | `1.2` | vertical over horizontal thumb direction |
-| `thumbs_up` / `thumbs_down` beep freq and duration | 1400 Hz / 120 ms, 400 Hz / 350 ms | beep tones |
 | `draw_landmarks` / `show_fps` / `mirror_preview` | `True` | overlay behaviour |
+
+`GestureClassifier` also takes `heart_thumb_join_ratio`, `heart_index_join_ratio`,
+and `heart_vertical_gap_ratio` for the two-hand heart. Beep sequences are in
+`DEFAULT_GESTURE_TONES` in `action_dispatcher.py`.
 
 ## Tests
 
@@ -193,25 +215,26 @@ Every tunable lives in `AppConfig` in `config.py`.
 python -m pytest -q
 ```
 
-16 tests, no webcam. CI runs them on Python 3.9, 3.11, and 3.13. Coverage:
+25 tests, no webcam. CI runs them on Python 3.9, 3.11, and 3.13. Coverage:
 
-* thumbs-up and thumbs-down recognized from synthetic landmarks, including a
-  resolution-scaled hand
-* open palm, fist, and a degenerate hand do not trigger
-* a single frame never confirms; an alternating up/unknown sequence is rejected
-* a stable sequence confirms and survives one noise frame
+* every one-hand gesture recognized from synthetic landmarks, including a
+  resolution-scaled hand, a tilted hand, and a loosely curled spare finger;
+  a degenerate hand stays `UNKNOWN`
+* two-hand heart recognized; two open palms held apart are not a heart
+* a single frame never confirms; an alternating gesture/unknown sequence is
+  rejected; a stable sequence confirms and survives one noise frame
 * an action fires once per hold, cooldown blocks an immediate re-trigger, and
   switching gestures fires the other action
 
 ## Assumptions and limitations
 
-* One hand, roughly facing the camera, fingers pointing broadly up or down.
-* No in-plane rotation invariance. Heavily rotated or side-on hands read as
-  `UNKNOWN`.
+* Hands roughly facing the camera. The finger-pose rules tolerate a moderate
+  in-plane tilt; thumbs-up and thumbs-down still assume a roughly upright hand.
+* Side-on or strongly foreshortened hands read as `UNKNOWN`.
 * Even lighting; MediaPipe handles detection robustness.
-* Only thumbs-up and thumbs-down are implemented. The other enum values are
-  placeholders.
-* Single hand (`max_hands = 1`).
+* `INDEX_DOWN` and `OK` are reserved enum values with no classifier rule yet.
+* Up to two hands (`max_hands = 2`). `TWO_HAND_HEART` is the only two-hand rule.
+* The heart rule expects the classic upright two-hand heart, not a rotated one.
 * Audible beeps are Windows-only. Other platforms log the beep.
 * The live webcam loop needs a physical camera and has not been captured here.
 
@@ -221,15 +244,15 @@ python -m pytest -q
 * **V3.** Map `/gesture` to real robot commands.
 * **V4.** Benchmark landmark geometry against a custom YOLO gesture detector on
   accuracy, FPS, and latency.
-* More gestures (open palm, fist, peace, OK) and richer actions (volume,
+* Remaining gestures (`OK`, `INDEX_DOWN`) and richer actions (volume,
   play/pause, keyboard shortcuts, custom callbacks).
 
 ## Visual assets status
 
 | Asset | Status |
 | --- | --- |
-| Demo GIF or screen recording | `Planned` |
-| Screenshot of the live overlay | `Planned` |
+| Overlay illustration (`assets/readme/overlay-mockup.svg`) | Done, code-drawn, not a camera capture |
+| Demo GIF or screen recording | `Planned` (needs a webcam session) |
 | Social preview image | `Recommended` |
 | Logo | Not needed for this project |
 

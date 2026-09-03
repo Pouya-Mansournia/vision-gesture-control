@@ -25,11 +25,8 @@ class AppConfig:
     finger_fold_threshold: float = 1.1
     thumb_vertical_ratio: float = 1.2
 
-    # --- Beep parameters -----------------------------------------------
-    thumbs_up_frequency_hz: int = 1400
-    thumbs_up_duration_ms: int = 120
-    thumbs_down_frequency_hz: int = 400
-    thumbs_down_duration_ms: int = 350
+    # Per-gesture beep sequences live in
+    # ``action_dispatcher.DEFAULT_GESTURE_TONES``.
 
     # --- Visualization ----------------------------------------------------
     draw_landmarks: bool = True
