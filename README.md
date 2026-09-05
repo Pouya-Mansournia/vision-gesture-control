@@ -32,8 +32,7 @@ Cooldown](assets/readme/overlay-screenshot.jpg)
 A `PEACE` gesture confirmed and dispatched, with the hand skeleton and status
 overlay drawn live on the webcam feed. A short demo GIF is still `Planned`.
 
-<details>
-<summary>Overlay illustration (code-drawn, not a capture)</summary>
+**Overlay illustration** (code-drawn, not a capture):
 
 ![Illustration of the on-screen overlay: a hand skeleton drawn over the webcam
 frame with a status panel showing gesture, confirmed gesture, action, FPS, and
@@ -41,8 +40,6 @@ cooldown](assets/readme/overlay-mockup.svg)
 
 This one is drawn straight from `visualization.py`'s layout, kept here mostly
 because it turned out to be a nice clean reference for the text overlay.
-
-</details>
 
 ## What it does
 
