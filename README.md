@@ -30,8 +30,7 @@ the status panel showing Gesture, Confirmed, Action, FPS, and
 Cooldown](assets/readme/overlay-screenshot.jpg)
 
 A `PEACE` gesture confirmed and dispatched, with the hand skeleton and status
-overlay drawn live on the webcam feed. A short demo GIF is still `Planned`
-(see [Visual assets status](#visual-assets-status)).
+overlay drawn live on the webcam feed. A short demo GIF is still `Planned`.
 
 <details>
 <summary>Overlay illustration (code-drawn, not a capture)</summary>
@@ -257,16 +256,6 @@ python -m pytest -q
   accuracy, FPS, and latency.
 * Remaining gestures (`OK`, `INDEX_DOWN`) and richer actions (volume,
   play/pause, keyboard shortcuts, custom callbacks).
-
-## Visual assets status
-
-| Asset | Status |
-| --- | --- |
-| Live-app screenshot (`assets/readme/overlay-screenshot.jpg`) | Done, real capture |
-| Overlay illustration (`assets/readme/overlay-mockup.svg`) | Done, code-drawn, kept as a bonus |
-| Demo GIF or screen recording | `Planned` |
-| Social preview image | `Recommended` |
-| Logo | Not needed for this project |
 
 ## Computer vision concepts demonstrated
 
