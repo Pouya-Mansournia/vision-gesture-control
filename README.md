@@ -25,14 +25,25 @@ flowchart LR
 
 ## Demo
 
+![Screenshot of the live app: a PEACE hand pose with the skeleton overlay and
+the status panel showing Gesture, Confirmed, Action, FPS, and
+Cooldown](assets/readme/overlay-screenshot.jpg)
+
+A `PEACE` gesture confirmed and dispatched, with the hand skeleton and status
+overlay drawn live on the webcam feed. A short demo GIF is still `Planned`
+(see [Visual assets status](#visual-assets-status)).
+
+<details>
+<summary>Overlay illustration (code-drawn, not a capture)</summary>
+
 ![Illustration of the on-screen overlay: a hand skeleton drawn over the webcam
 frame with a status panel showing gesture, confirmed gesture, action, FPS, and
 cooldown](assets/readme/overlay-mockup.svg)
 
-The figure above is drawn from the code, not captured from a camera. When the
-app runs it shows the live webcam with the hand skeleton on top and this status
-overlay. A real screen recording is still `Planned` (see
-[Visual assets status](#visual-assets-status)).
+This one is drawn straight from `visualization.py`'s layout, kept here mostly
+because it turned out to be a nice clean reference for the text overlay.
+
+</details>
 
 ## What it does
 
@@ -251,8 +262,9 @@ python -m pytest -q
 
 | Asset | Status |
 | --- | --- |
-| Overlay illustration (`assets/readme/overlay-mockup.svg`) | Done, code-drawn, not a camera capture |
-| Demo GIF or screen recording | `Planned` (needs a webcam session) |
+| Live-app screenshot (`assets/readme/overlay-screenshot.jpg`) | Done, real capture |
+| Overlay illustration (`assets/readme/overlay-mockup.svg`) | Done, code-drawn, kept as a bonus |
+| Demo GIF or screen recording | `Planned` |
 | Social preview image | `Recommended` |
 | Logo | Not needed for this project |
 
